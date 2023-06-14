@@ -1,8 +1,8 @@
-mod utils;
-
-use js_sys;
 use std::fmt;
 use wasm_bindgen::prelude::*;
+
+mod macros;
+mod utils;
 
 #[wasm_bindgen]
 #[repr(u8)]
@@ -47,42 +47,10 @@ impl Universe {
 // Public methods, exported to JavaScript.
 #[wasm_bindgen]
 impl Universe {
-    pub fn tick(&mut self) {
-        let mut next = self.cells.clone();
-
-        for row in 0..self.height {
-            for col in 0..self.width {
-                let idx = self.get_index(row, col);
-                let cell = self.cells[idx];
-                let live_neighbors = self.live_neighbor_count(row, col);
-
-                let next_cell = match (cell, live_neighbors) {
-                    // Rule 1: Any live cell with fewer than two live neighbours
-                    // dies, as if caused by underpopulation.
-                    (Cell::Alive, x) if x < 2 => Cell::Dead,
-                    // Rule 2: Any live cell with two or three live neighbours
-                    // lives on to the next generation.
-                    (Cell::Alive, 2) | (Cell::Alive, 3) => Cell::Alive,
-                    // Rule 3: Any live cell with more than three live
-                    // neighbours dies, as if by overpopulation.
-                    (Cell::Alive, x) if x > 3 => Cell::Dead,
-                    // Rule 4: Any dead cell with exactly three live neighbours
-                    // becomes a live cell, as if by reproduction.
-                    (Cell::Dead, 3) => Cell::Alive,
-                    // All other cells remain in the same state.
-                    (otherwise, _) => otherwise,
-                };
-
-                next[idx] = next_cell;
-            }
-        }
-
-        self.cells = next;
-    }
-
     pub fn new() -> Universe {
-        let width = 64;
-        let height = 64;
+        utils::set_panic_hook();
+        let width = 25;
+        let height = 25;
 
         let cells = (0..width * height)
             .map(|_| {
@@ -101,6 +69,32 @@ impl Universe {
         }
     }
 
+    pub fn tick(&mut self) {
+        let mut next = self.cells.clone();
+
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let idx = self.get_index(row, col);
+                let cell = self.cells[idx];
+                let live_neighbors = self.live_neighbor_count(row, col);
+
+                let next_cell = match (cell, live_neighbors) {
+                    (Cell::Alive, x) if x < 2 => Cell::Dead,
+                    (Cell::Alive, 2) | (Cell::Alive, 3) => Cell::Alive,
+                    (Cell::Alive, x) if x > 3 => Cell::Dead,
+                    (Cell::Dead, 3) => Cell::Alive,
+                    (otherwise, _) => otherwise,
+                };
+
+                log!("---- next cell: {:?}", next_cell);
+
+                next[idx] = next_cell;
+            }
+        }
+
+        self.cells = next;
+    }
+
     pub fn width(&self) -> u32 {
         self.width
     }
@@ -115,6 +109,34 @@ impl Universe {
 
     pub fn render(&self) -> String {
         self.to_string()
+    }
+
+    pub fn set_width(&mut self, width: u32) {
+        self.width = width;
+        self.reset_cells();
+    }
+
+    pub fn set_height(&mut self, height: u32) {
+        self.height = height;
+        self.reset_cells();
+    }
+
+    fn reset_cells(&mut self) {
+        self.cells = (0..self.width * self.height).map(|_i| Cell::Dead).collect();
+    }
+}
+
+impl Universe {
+    pub fn get_cells(&self) -> &[Cell] {
+        &self.cells
+    }
+
+    // TODO: Refactor without cloned; cells -> coords
+    pub fn set_cells(&mut self, cells: &[(u32, u32)]) {
+        for (row, col) in cells.iter().cloned() {
+            let idx = self.get_index(row, col);
+            self.cells[idx] = Cell::Alive;
+        }
     }
 }
 

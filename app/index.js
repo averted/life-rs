@@ -72,4 +72,4 @@ const render = () => {
 
 setInterval(() => {
   requestAnimationFrame(render);
-}, 100)
+}, 200)

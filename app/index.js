@@ -10,11 +10,42 @@ const universe = Universe.new();
 const width = universe.width();
 const height = universe.height();
 
+const playPauseButton = document.getElementById("play-pause");
 const canvas = document.getElementById("life-canvas");
 canvas.height = (CELL_SIZE + 1) * height + 1;
 canvas.width = (CELL_SIZE + 1) * width + 1;
 
+playPauseButton.addEventListener("click", event => {
+  if (isPaused()) {
+    play();
+  } else {
+    pause();
+  }
+});
+
 const ctx = canvas.getContext('2d');
+
+canvas.addEventListener("click", event => {
+  const boundingRect = canvas.getBoundingClientRect();
+
+  const scaleX = canvas.width / boundingRect.width;
+  const scaleY = canvas.height / boundingRect.height;
+
+  const canvasLeft = (event.clientX - boundingRect.left) * scaleX;
+  const canvasTop = (event.clientY - boundingRect.top) * scaleY;
+
+  const row = Math.min(Math.floor(canvasTop / (CELL_SIZE + 1)), height - 1);
+  const col = Math.min(Math.floor(canvasLeft / (CELL_SIZE + 1)), width - 1);
+
+  universe.toggle_cell(row, col);
+
+  drawGrid();
+  drawCells();
+});
+
+let interval = null;
+const isPaused = () => interval === null;
+const getIndex = (row, column) => row * width + column;
 
 const drawGrid = () => {
   ctx.beginPath();
@@ -31,11 +62,6 @@ const drawGrid = () => {
   }
 
   ctx.stroke();
-};
-
-
-const getIndex = (row, column) => {
-  return row * width + column;
 };
 
 const drawCells = () => {
@@ -64,12 +90,22 @@ const drawCells = () => {
   ctx.stroke();
 };
 
+const play = () => {
+  playPauseButton.textContent = "⏸";
+  render();
+  interval = setInterval(() => requestAnimationFrame(render), 200)
+};
+
+const pause = () => {
+  playPauseButton.textContent = "▶";
+  clearInterval(interval);
+  interval = null;
+};
+
 const render = () => {
   drawGrid();
   drawCells();
   universe.tick();
 };
 
-setInterval(() => {
-  requestAnimationFrame(render);
-}, 200)
+play();
